@@ -7,6 +7,7 @@ import com.phl.ssmcreditcard.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
+import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -35,5 +36,25 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public StateMachine<PaymentState, PaymentEvent> decline(Long paymentId) {
         return null;
+    }
+
+    private StateMachine<PaymentState, PaymentEvent> build(Long paymentId) {
+
+        Payment payment = repository.getOne(paymentId);
+        StateMachine<PaymentState, PaymentEvent> stateMachine = factory.getStateMachine(paymentId.toString());
+
+        stateMachine.stop();
+        resetStateMachine(stateMachine, payment);
+        stateMachine.start();
+
+        return stateMachine;
+    }
+
+    private static void resetStateMachine(StateMachine<PaymentState, PaymentEvent> stateMachine, Payment payment) {
+        DefaultStateMachineContext<PaymentState, PaymentEvent> context =
+            new DefaultStateMachineContext<>(payment.getState(), null, null, null);
+        stateMachine
+            .getStateMachineAccessor()
+            .doWithAllRegions(sma -> sma.resetStateMachine(context));
     }
 }
