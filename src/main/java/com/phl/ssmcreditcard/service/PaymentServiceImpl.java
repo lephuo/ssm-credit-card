@@ -16,8 +16,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
+    static String PAYMENT_ID_HEADER = "payment_id";
+
     private final PaymentRepository repository;
     private final StateMachineFactory<PaymentState, PaymentEvent> factory;
+    private final PaymentStateChangeInterceptor interceptor;
 
     @Override
     public Payment newPayment(Payment payment) {
@@ -58,18 +61,21 @@ public class PaymentServiceImpl implements PaymentService {
         return stateMachine;
     }
 
-    private static void resetStateMachine(StateMachine<PaymentState, PaymentEvent> stateMachine, Payment payment) {
+    private void resetStateMachine(StateMachine<PaymentState, PaymentEvent> stateMachine, Payment payment) {
         DefaultStateMachineContext<PaymentState, PaymentEvent> context =
             new DefaultStateMachineContext<>(payment.getState(), null, null, null);
         stateMachine
             .getStateMachineAccessor()
-            .doWithAllRegions(sma -> sma.resetStateMachine(context));
+            .doWithAllRegions(sma -> {
+                sma.addStateMachineInterceptor(interceptor);
+                sma.resetStateMachine(context);
+            });
     }
 
     private void sendEvent(PaymentEvent event, Long paymentId, StateMachine<PaymentState, PaymentEvent> stateMachine) {
         Message<PaymentEvent> message = MessageBuilder
             .withPayload(event)
-            .setHeader("payment_id", paymentId)
+            .setHeader(PAYMENT_ID_HEADER, paymentId)
             .build();
         stateMachine.sendEvent(message);
     }
