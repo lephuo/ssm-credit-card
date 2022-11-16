@@ -5,6 +5,8 @@ import com.phl.ssmcreditcard.domain.PaymentEvent;
 import com.phl.ssmcreditcard.domain.PaymentState;
 import com.phl.ssmcreditcard.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
@@ -25,17 +27,23 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public StateMachine<PaymentState, PaymentEvent> preAuthorize(Long paymentId) {
-        return null;
+        return sendEvent(PaymentEvent.PRE_AUTHORIZE, paymentId);
     }
 
     @Override
     public StateMachine<PaymentState, PaymentEvent> authorize(Long paymentId) {
-        return null;
+        return sendEvent(PaymentEvent.AUTHORIZE, paymentId);
     }
 
     @Override
-    public StateMachine<PaymentState, PaymentEvent> decline(Long paymentId) {
-        return null;
+    public StateMachine<PaymentState, PaymentEvent> declineAuth(Long paymentId) {
+        return sendEvent(PaymentEvent.AUTH_DECLINED, paymentId);
+    }
+
+    private StateMachine<PaymentState, PaymentEvent> sendEvent(PaymentEvent event, Long paymentId) {
+        StateMachine<PaymentState, PaymentEvent> stateMachine = build(paymentId);
+        sendEvent(event, paymentId, stateMachine);
+        return stateMachine;
     }
 
     private StateMachine<PaymentState, PaymentEvent> build(Long paymentId) {
@@ -56,5 +64,13 @@ public class PaymentServiceImpl implements PaymentService {
         stateMachine
             .getStateMachineAccessor()
             .doWithAllRegions(sma -> sma.resetStateMachine(context));
+    }
+
+    private void sendEvent(PaymentEvent event, Long paymentId, StateMachine<PaymentState, PaymentEvent> stateMachine) {
+        Message<PaymentEvent> message = MessageBuilder
+            .withPayload(event)
+            .setHeader("payment_id", paymentId)
+            .build();
+        stateMachine.sendEvent(message);
     }
 }
