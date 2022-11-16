@@ -4,6 +4,7 @@ import com.phl.ssmcreditcard.domain.Payment;
 import com.phl.ssmcreditcard.domain.PaymentEvent;
 import com.phl.ssmcreditcard.domain.PaymentState;
 import com.phl.ssmcreditcard.repository.PaymentRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
@@ -30,7 +31,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public StateMachine<PaymentState, PaymentEvent> preAuthorize(Long paymentId) {
-        return sendEvent(PaymentEvent.PRE_AUTHORIZE, paymentId);
+        return sendEvent(PaymentEvent.PRE_AUTH_APPROVED, paymentId);
     }
 
     @Override
