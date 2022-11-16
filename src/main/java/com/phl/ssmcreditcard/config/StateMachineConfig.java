@@ -40,24 +40,41 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     @Override
     public void configure(StateMachineTransitionConfigurer<PaymentState, PaymentEvent> transitions) throws Exception {
         transitions
-            .withExternal().event(PaymentEvent.PRE_AUTHORIZE).source(PaymentState.NEW).target(PaymentState.NEW).action(preAuthAction())
-            .and()
-            .withExternal().event(PaymentEvent.PRE_AUTH_APPROVED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH)
-            .and()
-            .withExternal().event(PaymentEvent.PRE_AUTH_DECLINED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR);
+            .withInternal().event(PaymentEvent.PRE_AUTHORIZE).source(PaymentState.NEW).action(preAuthAction()).and()
+
+            .withExternal().event(PaymentEvent.PRE_AUTH_APPROVED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH).and()
+            .withExternal().event(PaymentEvent.PRE_AUTH_DECLINED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR).and()
+
+            .withInternal().event(PaymentEvent.AUTHORIZE).source(PaymentState.PRE_AUTH).action(authAction()).and()
+
+            .withExternal().event(PaymentEvent.AUTH_APPROVED).source(PaymentState.PRE_AUTH).target(PaymentState.AUTH).and()
+            .withExternal().event(PaymentEvent.AUTH_DECLINED).source(PaymentState.PRE_AUTH).target(PaymentState.AUTH_ERROR);
     }
 
     private Action<PaymentState, PaymentEvent> preAuthAction() {
         return context -> {
-            System.out.println("preAuthAction was called ⚡");
+            Long paymentId = (Long) context.getMessageHeader(PAYMENT_ID_HEADER);
+            boolean isApproved = new Random().nextInt() > 8;
 
-            PaymentEvent payload = new Random().nextInt() > 8
-                ? PaymentEvent.PRE_AUTH_APPROVED
-                : PaymentEvent.PRE_AUTH_DECLINED;
-            Message<PaymentEvent> message = MessageBuilder
-                .withPayload(payload)
-                .setHeader(PAYMENT_ID_HEADER, context.getMessageHeader(PAYMENT_ID_HEADER))
-                .build();
+            String logMessage = isApproved ? "PreAuth %s was approved" : "PreAuth %s was declined";
+            log.info(String.format(logMessage, paymentId));
+
+            PaymentEvent payload = isApproved ? PaymentEvent.PRE_AUTH_APPROVED : PaymentEvent.PRE_AUTH_DECLINED;
+            Message<PaymentEvent> message = MessageBuilder.withPayload(payload).setHeader(PAYMENT_ID_HEADER, paymentId).build();
+            context.getStateMachine().sendEvent(message);
+        };
+    }
+
+    private Action<PaymentState, PaymentEvent> authAction() {
+        return context -> {
+            Long paymentId = (Long) context.getMessageHeader(PAYMENT_ID_HEADER);
+            boolean isApproved = new Random().nextInt() > 8;
+
+            String logMessage = isApproved ? "Auth %s was approved" : "Auth %s was declined";
+            log.info(String.format(logMessage, paymentId));
+
+            PaymentEvent payload = isApproved ? PaymentEvent.AUTH_APPROVED : PaymentEvent.AUTH_DECLINED;
+            Message<PaymentEvent> message = MessageBuilder.withPayload(payload).setHeader(PAYMENT_ID_HEADER, paymentId).build();
             context.getStateMachine().sendEvent(message);
         };
     }
@@ -70,9 +87,9 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     private final StateMachineListenerAdapter<PaymentState, PaymentEvent> listener = new StateMachineListenerAdapter<>() {
         @Override
         public void stateChanged(State<PaymentState, PaymentEvent> from, State<PaymentState, PaymentEvent> to) {
-            System.out.printf("State changed from %s to %s%n",
-                Optional.ofNullable(from).map(State::getId).orElse(null),
-                to.getId());
+            PaymentState fromStateId = Optional.ofNullable(from).map(State::getId).orElse(null);
+            String message = String.format("State changed from %s to %s%n", fromStateId, to.getId());
+            log.info(message);
         }
     };
 }

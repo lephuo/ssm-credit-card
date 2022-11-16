@@ -39,6 +39,7 @@ public class PaymentServiceImpl implements PaymentService {
         return sendEvent(PaymentEvent.AUTHORIZE, paymentId);
     }
 
+    @Deprecated
     @Override
     public StateMachine<PaymentState, PaymentEvent> declineAuth(Long paymentId) {
         return sendEvent(PaymentEvent.AUTH_DECLINED, paymentId);
