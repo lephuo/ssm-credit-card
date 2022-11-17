@@ -12,10 +12,12 @@ import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
+import org.springframework.statemachine.guard.Guard;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 
@@ -40,7 +42,7 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     @Override
     public void configure(StateMachineTransitionConfigurer<PaymentState, PaymentEvent> transitions) throws Exception {
         transitions
-            .withInternal().event(PaymentEvent.PRE_AUTHORIZE).source(PaymentState.NEW).action(preAuthAction()).and()
+            .withInternal().event(PaymentEvent.PRE_AUTHORIZE).source(PaymentState.NEW).action(preAuthAction()).guard(paymentIdGuard()).and()
 
             .withExternal().event(PaymentEvent.PRE_AUTH_APPROVED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH).and()
             .withExternal().event(PaymentEvent.PRE_AUTH_DECLINED).source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR).and()
@@ -77,6 +79,10 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
             Message<PaymentEvent> message = MessageBuilder.withPayload(payload).setHeader(PAYMENT_ID_HEADER, paymentId).build();
             context.getStateMachine().sendEvent(message);
         };
+    }
+
+    private Guard<PaymentState, PaymentEvent> paymentIdGuard() {
+        return context -> Objects.nonNull(context.getMessageHeader(PAYMENT_ID_HEADER));
     }
 
     @Override
