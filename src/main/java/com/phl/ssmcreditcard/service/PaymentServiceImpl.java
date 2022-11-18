@@ -4,7 +4,6 @@ import com.phl.ssmcreditcard.domain.Payment;
 import com.phl.ssmcreditcard.domain.PaymentEvent;
 import com.phl.ssmcreditcard.domain.PaymentState;
 import com.phl.ssmcreditcard.repository.PaymentRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
@@ -55,6 +54,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment payment = repository.getOne(paymentId);
         StateMachine<PaymentState, PaymentEvent> stateMachine = factory.getStateMachine(paymentId.toString());
+
+        System.out.println(StateMachineMermaidGenerator.generate(stateMachine));;
 
         stateMachine.stop();
         resetStateMachine(stateMachine, payment);
